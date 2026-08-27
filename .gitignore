@@ -1,0 +1,7 @@
+node_modules/
+dist/
+*.log
+*.bak
+*.bak-*
+.DS_Store
+.pi/

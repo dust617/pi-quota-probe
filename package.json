@@ -1,0 +1,17 @@
+{
+  "name": "pi-quota-probe",
+  "version": "0.1.0",
+  "type": "module",
+  "description": "Pi coding-agent extension: read-only GLM / DeepSeek / Codex quota & balance probe that maintains a credential-free router-budget.json for pi-model-auto",
+  "license": "MIT",
+  "scripts": {
+    "check": "tsc --noEmit -p tsconfig.json",
+    "pretest": "tsc -p tsconfig.json",
+    "test": "node --test \"dist/test/**/*.test.js\""
+  },
+  "devDependencies": {
+    "@earendil-works/pi-coding-agent": "^0.84.3",
+    "@types/node": "^22.20.1",
+    "typescript": "^5.6.3"
+  }
+}

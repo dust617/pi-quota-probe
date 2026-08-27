@@ -1,0 +1,37 @@
+{
+  "schemaVersion": 1,
+  "ttlMs": 1200000,
+  "timeoutMs": 15000,
+  "providers": {
+    "zhipu": {
+      "enabled": true,
+      "models": [
+        "zhipu/glm-5.3",
+        "zhipu/glm-5.3-flash"
+      ],
+      "reserveRatio": 0.05
+    },
+    "deepseek": {
+      "enabled": true,
+      "models": [
+        "deepseek/deepseek-v4-flash-vision-exp"
+      ],
+      "reserveRatio": 0,
+      "warningBalanceCny": 5,
+      "hardStopBalanceCny": 2
+    },
+    "openai-codex": {
+      "enabled": false,
+      "models": [
+        "openai-codex/gpt-5.6-luna",
+        "openai-codex/gpt-5.6-terra",
+        "openai-codex/gpt-5.6-sol"
+      ],
+      "reserveRatio": 0.05,
+      "surplusBoost": {
+        "minRemainingRatio": 0.5,
+        "targetFactor": 0.7
+      }
+    }
+  }
+}
