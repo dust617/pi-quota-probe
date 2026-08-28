@@ -64,15 +64,15 @@ test("GLM Coding Plan response yields the 5h and weekly budget windows", () => {
     code: 200,
     data: {
       limits: [
-        { type: "CREDIT_LIMIT", unit: 3, number: 5, currentValue: 160, usage: 2000, remaining: 1840, nextResetTime: NOW + 5 * 60 * 60 * 1_000 },
-        { type: "CREDIT_LIMIT", unit: 6, number: 1, currentValue: 160, usage: 10000, remaining: 9840, nextResetTime: NOW + 7 * 24 * 60 * 60 * 1_000 },
+        { type: "CREDIT_LIMIT", unit: 3, number: 5, currentValue: 160, usage: 2000, remaining: 1600, nextResetTime: NOW + 5 * 60 * 60 * 1_000 },
+        { type: "CREDIT_LIMIT", unit: 6, number: 1, currentValue: 160, usage: 10000, remaining: 8200, nextResetTime: NOW + 7 * 24 * 60 * 60 * 1_000 },
       ],
     },
   }, NOW);
   assert.equal(windows?.length, 2);
   assert.deepEqual(windows?.map((window) => window.id), ["five-hour", "weekly"]);
-  assert.equal(windows?.[0]?.remainingRatio, 0.92);
-  assert.equal(windows?.[1]?.remainingRatio, 0.984);
+  assert.equal(windows?.[0]?.remainingRatio, 0.8);
+  assert.equal(windows?.[1]?.remainingRatio, 0.82);
   assert.equal(parseZhipuQuota({ data: { limits: [] } }, NOW), undefined);
 });
 
