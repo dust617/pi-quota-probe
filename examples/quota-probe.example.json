@@ -28,6 +28,7 @@
         "openai-codex/gpt-5.6-sol"
       ],
       "reserveRatio": 0.05,
+      "fiveHourEnabled": false,
       "surplusBoost": {
         "minRemainingRatio": 0.5,
         "targetFactor": 0.7

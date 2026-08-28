@@ -59,6 +59,7 @@ cd pi-quota-probe && npm install
 | `providers.*.enabled` | 是否启用该 provider | codex 默认 `false`（未公开接口需显式开启） |
 | `providers.*.models` | 该 provider 覆盖的路由模型列表 | — |
 | `providers.*.reserveRatio` | 保留比例，配合 `hardStop` 触底排除 | `0.05` |
+| `providers.*.fiveHourEnabled` | 5 小时窗口是否计入预算与硬停（Codex 默认 `false`：仅周窗口驱动定价；若你的套餐 5h 窗口真实生效，设为 `true`） | codex `false`，其余 `true` |
 | `providers.deepseek.warningBalanceCny` | 低余额告警线（CNY） | `5` |
 | `providers.deepseek.hardStopBalanceCny` | 硬停线（CNY） | `2` |
 | `providers.*.surplusBoost.minRemainingRatio` | 富余加速的最低剩余比例（低于即恢复自然定价） | `0.5` |
