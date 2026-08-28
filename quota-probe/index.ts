@@ -16,6 +16,7 @@ import {
   type ProviderStatus,
   type QuotaProbeConfig,
   type QuotaStatusDocument,
+  type QuotaWindow,
   writeJsonAtomically,
   mergeRouterBudget,
   QUOTA_STATUS_VERSION,
@@ -85,15 +86,21 @@ async function requestJson(url: string, apiKey: string, timeoutMs: number, heade
 }
 
 async function apiKeyFor(ctx: ExtensionContext, provider: ProviderId, models: string[]): Promise<string | undefined> {
-  for (const ref of models) {
-    const slash = ref.indexOf("/");
-    if (slash <= 0 || slash === ref.length - 1) continue;
-    const model = ctx.modelRegistry.find(ref.slice(0, slash), ref.slice(slash + 1));
-    if (!model) continue;
-    const auth = await ctx.modelRegistry.getApiKeyAndHeaders(model);
-    if (auth.ok && typeof auth.apiKey === "string" && auth.apiKey.length > 0) return auth.apiKey;
-  }
-  return undefined;
+  return (async () => {
+    for (const ref of models) {
+      const slash = ref.indexOf("/");
+      if (slash <= 0 || slash === ref.length - 1) continue;
+      const model = ctx.modelRegistry.find(ref.slice(0, slash), ref.slice(slash + 1));
+      if (!model) continue;
+      try {
+        const auth = await ctx.modelRegistry.getApiKeyAndHeaders(model);
+        if (auth.ok && typeof auth.apiKey === "string" && auth.apiKey.length > 0) return auth.apiKey;
+      } catch {
+        // The registry can reject transiently (e.g. mid token refresh); fall through to the next model.
+      }
+    }
+    return undefined;
+  })();
 }
 
 async function refreshZhipu(ctx: ExtensionContext, config: ProviderConfig, timeoutMs: number, now: number): Promise<ProviderStatus> {
@@ -156,11 +163,12 @@ function unknownStatus(now: number, code: string): QuotaStatusDocument {
 }
 
 function statusTag(status: QuotaStatusDocument): string {
-  const glm = status.providers.zhipu.windows?.[0];
-  // GLM display keeps the 5h bucket (the tightest, most actionable number). Codex has no real
-  // 5h cap right now, so show its weekly window instead to avoid a misleading percentage.
-  const codex = status.providers["openai-codex"].windows?.find((window) => window.id === "weekly")
-    ?? status.providers["openai-codex"].windows?.[0];
+  // Show each provider's BINDING window (the lowest remaining ratio) — e.g. Codex weekly can sit
+  // at 87% while its 5h bucket is nearly drained; showing weekly alone read as "plenty left".
+  const binding = (windows: QuotaWindow[] | undefined): QuotaWindow | undefined =>
+    windows?.length ? windows.reduce((a, b) => (b.remainingRatio < a.remainingRatio ? b : a)) : undefined;
+  const glm = binding(status.providers.zhipu.windows);
+  const codex = binding(status.providers["openai-codex"].windows);
   const deepseek = status.providers.deepseek;
   const glmText = glm ? `GLM ${Math.round(glm.remainingRatio * 100)}%` : "GLM ?";
   const deepseekText = deepseek.balanceCny === undefined ? "DS ?" : `DS ¥${deepseek.balanceCny.toFixed(2)}`;
@@ -218,10 +226,14 @@ export default function quotaProbe(pi: ExtensionAPI): void {
     }
     if (!force && lastResult && now - lastRefreshAt < config.ttlMs) return lastResult;
 
+    // One provider rejecting (e.g. modelRegistry mid-OAuth-refresh) must never kill the others.
+    const checkedAt = new Date(now).toISOString();
+    const safe = (probe: Promise<ProviderStatus>): Promise<ProviderStatus> =>
+      probe.catch(() => unknown(checkedAt, "exception"));
     const [zhipu, deepseek, codex] = await Promise.all([
-      refreshZhipu(ctx, config.providers.zhipu, config.timeoutMs, now),
-      refreshDeepSeek(ctx, config.providers.deepseek, config.timeoutMs, now),
-      refreshCodex(ctx, config.providers["openai-codex"], config.timeoutMs, now),
+      safe(refreshZhipu(ctx, config.providers.zhipu, config.timeoutMs, now)),
+      safe(refreshDeepSeek(ctx, config.providers.deepseek, config.timeoutMs, now)),
+      safe(refreshCodex(ctx, config.providers["openai-codex"], config.timeoutMs, now)),
     ]);
     const status: QuotaStatusDocument = {
       schemaVersion: QUOTA_STATUS_VERSION,
@@ -250,8 +262,15 @@ export default function quotaProbe(pi: ExtensionAPI): void {
   };
 
   pi.on("session_start", async (_event, ctx) => {
-    const result = await refresh(ctx, false);
-    ctx.ui.setStatus("quota", statusTag(result.status));
+    // A project switch clears the status bar; probing takes seconds (network) and used to leave
+    // the slot empty until done — or forever when refresh threw. Always show something first.
+    ctx.ui.setStatus("quota", "💳 …");
+    try {
+      const result = await refresh(ctx, false);
+      ctx.ui.setStatus("quota", statusTag(result.status));
+    } catch {
+      ctx.ui.setStatus("quota", "💳 ?");
+    }
   });
 
   pi.registerCommand("quota-status", {
